@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>粤港澳大湾区数据可视化</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+    
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #f5f5f5;
+    }
+    
+    /* 页眉样式 */
+    header {
+      background: linear-gradient(135deg, #1e5799 0%, #207cca 100%);
+      color: white;
+      padding: 15px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 100;
+    }
+    
+    header h1 {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+    
+    header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    
+    /* 主内容区域 */
+    .main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    
+    /* 地图区域 */
+    #viewDiv {
+      flex: 1;
+      height: 100%;
+      min-width: 0;
+    }
+    
+    /* 底图库区域 */
+    .basemap-gallery {
+      width: 250px;
+      background-color: white;
+      padding: 15px;
+      overflow-y: auto;
+      box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+      border-left: 1px solid #ddd;
+    }
+    
+    .basemap-gallery h2 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #333;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .basemap-item {
+      margin-bottom: 15px;
+      cursor: pointer;
+      transition: all 0.3s;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .basemap-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .basemap-thumbnail {
+      height: 100px;
+      background-size: cover;
+      background-position: center;
+    }
+    
+    .basemap-title {
+      padding: 8px;
+      background-color: #f9f9f9;
+      font-size: 14px;
+      text-align: center;
+    }
+    
+    .active-basemap {
+      border: 2px solid #0079c1;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>粤港澳大湾区数据可视化平台</h1>
+    <p>基于arcgis api for javascript构建webgis应用</p>
+  </header>
+  
+  <div class="main-container">
+    <div id="viewDiv"></div>
+    <div class="basemap-gallery">
+      <h2>底图库</h2>
+      <div class="basemap-item" data-basemap="streets">
+        <div class="basemap-thumbnail" style="background-image: url('https://www.arcgis.com/sharing/rest/content/items/3e36eb678be4473a8fa16d9afcdf697e/info/thumbnail/thumbnail.jpg')"></div>
+        <div class="basemap-title">街道地图</div>
+      </div>
+      <div class="basemap-item" data-basemap="topo">
+        <div class="basemap-thumbnail" style="background-image: url('https://www.arcgis.com/sharing/rest/content/items/3e36eb678be4473a8fa16d9afcdf697e/info/thumbnail/thumbnail.jpg')"></div>
+        <div class="basemap-title">地形图</div>
+      </div>
+      <div class="basemap-item" data-basemap="satellite">
+        <div class="basemap-thumbnail" style="background-image: url('https://www.arcgis.com/sharing/rest/content/items/3e36eb678be4473a8fa16d9afcdf697e/info/thumbnail/thumbnail.jpg')"></div>
+        <div class="basemap-title">卫星影像</div>
+      </div>
+      <div class="basemap-item" data-basemap="hybrid">
+        <div class="basemap-thumbnail" style="background-image: url('https://www.arcgis.com/sharing/rest/content/items/3e36eb678be4473a8fa16d9afcdf697e/info/thumbnail/thumbnail.jpg')"></div>
+        <div class="basemap-title">混合地图</div>
+      </div>
+      <div class="basemap-item" data-basemap="dark-gray">
+        <div class="basemap-thumbnail" style="background-image: url('https://www.arcgis.com/sharing/rest/content/items/3e36eb678be4473a8fa16d9afcdf697e/info/thumbnail/thumbnail.jpg')"></div>
+        <div class="basemap-title">深灰色画布</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://js.arcgis.com/4.32/"></script>
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/widgets/Legend",
+      "esri/widgets/ScaleBar",
+      "esri/widgets/Search",
+      "esri/widgets/LayerList",
+      "esri/Basemap",
+      "esri/layers/support/LabelClass",
+      "esri/symbols/TextSymbol",
+      "esri/renderers/SimpleRenderer"
+    ], function(Map, MapView, FeatureLayer, Legend, ScaleBar, Search, LayerList, Basemap, LabelClass, TextSymbol, SimpleRenderer) {
+      
+      // 创建地图实例
+      const map = new Map({
+        basemap: "streets"
+      });
+
+      // 创建标注类
+      const labelClass = new LabelClass({
+        labelExpressionInfo: { expression: "$feature.城市名称" },
+        symbol: new TextSymbol({
+          color: "#333333",
+          font: {
+            size: 12,
+            weight: "bold"
+          },
+          haloColor: [255, 255, 255, 0.8],
+          haloSize: 2
+        }),
+        labelPlacement: "center-center",
+        minScale: 0,
+        maxScale: 0
+      });
+
+      // 创建渲染器
+      const renderer = new SimpleRenderer({
+        symbol: {
+          type: "simple-fill",
+          color: [51, 153, 204, 0.7],
+          outline: {
+            color: [255, 255, 255, 0.8],
+            width: 1
+          }
+        }
+      });
+
+      // 添加大湾区专题图层
+      const gbaLayer = new FeatureLayer({
+        url: "https://www.geosceneonline.cn/server/rest/services/Hosted/粤港澳大湾区城市数据/FeatureServer/0",
+        title: "粤港澳大湾区城市数据",
+        labelingInfo: [labelClass],
+        renderer: renderer,
+        popupTemplate: {
+          title: "{城市名称}",
+          content: [{
+            type: "fields",
+            fieldInfos: [
+              { fieldName: "GDP", label: "GDP(亿元)" },
+              { fieldName: "人口", label: "人口(万人)" },
+              { fieldName: "面积", label: "面积(平方公里)" }
+            ]
+          }]
+        }
+      });
+      map.add(gbaLayer);
+
+      // 创建视图
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [113.5, 22.2], // 大湾区中心坐标
+        zoom: 8
+      });
+
+      // 添加比例尺
+      const scaleBar = new ScaleBar({
+        view: view,
+        unit: "metric"
+      });
+      view.ui.add(scaleBar, {
+        position: "bottom-left"
+      });
+
+      // 添加图例
+      const legend = new Legend({
+        view: view
+      });
+      view.ui.add(legend, "top-right");
+
+      // 添加搜索框
+      const searchWidget = new Search({
+        view: view
+      });
+      view.ui.add(searchWidget, {
+        position: "top-left",
+        index: 0
+      });
+
+      // 添加图层列表
+      const layerList = new LayerList({
+        view: view
+      });
+      view.ui.add(layerList, {
+        position: "top-right",
+        index: 1
+      });
+
+      // 底图切换功能
+      document.querySelectorAll(".basemap-item").forEach(item => {
+        item.addEventListener("click", function() {
+          // 移除所有active类
+          document.querySelectorAll(".basemap-item").forEach(el => {
+            el.classList.remove("active-basemap");
+          });
+          
+          // 添加active类到当前点击项
+          this.classList.add("active-basemap");
+          
+          // 切换底图
+          const basemapId = this.getAttribute("data-basemap");
+          map.basemap = basemapId;
+        });
+      });
+
+      // 默认激活第一个底图
+      document.querySelector(".basemap-item").classList.add("active-basemap");
+    });
+  </script>
+</body>
+</html>
